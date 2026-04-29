@@ -1,0 +1,15 @@
+name: Public Provider Safe Branch
+
+on:
+  workflow_call:
+    secrets:
+      consumer_secret:
+        required: false
+
+jobs:
+  reusable:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "public_provider_marker=SAFE_PUBLIC_BRANCH_20260429"
+          echo "runtime_repository=${GITHUB_REPOSITORY}"
