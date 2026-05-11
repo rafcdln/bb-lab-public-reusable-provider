@@ -1,4 +1,4 @@
-name: Public Provider With Nested Reusable Call
+name: Public Provider With Nested Reusable Call (branch-ref nested)
 
 on:
   workflow_call:
@@ -10,15 +10,11 @@ jobs:
   direct-step:
     runs-on: ubuntu-latest
     steps:
-      - run: |
-          echo "public_provider_marker=NESTED_CALLER_PROVIDER_20260511"
-          echo "runtime_repository=${GITHUB_REPOSITORY}"
-          echo "workflow_ref=${GITHUB_WORKFLOW_REF}"
+      - run: echo "public_provider_marker=NESTED_BRANCHREF_PROVIDER_20260511"
 
   nested-call:
-    # Nested reusable workflow call to a repo NOT in the consumer's allowlist.
-    # Consumer only allowlisted: rafcdln/bb-lab-public-reusable-provider/.github/workflows/deploy.yml@<SHA>
-    # This calls rafcdln/bb-lab-sub-provider which is NOT in that list.
-    uses: rafcdln/bb-lab-sub-provider/.github/workflows/sub.yml@9fbb73a79f7758ee90c673d54ed5fb3505bac869
+    # Branch-ref, NOT SHA. With sha_pinning_required=true on the consumer,
+    # this nested call should be rejected if the policy is enforced transitively.
+    uses: rafcdln/bb-lab-sub-provider/.github/workflows/sub.yml@main
     secrets:
       consumer_secret: ${{ secrets.consumer_secret }}
